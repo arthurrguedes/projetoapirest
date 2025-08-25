@@ -1,14 +1,8 @@
 import express from 'express'
+import conexao from './conexao.js'
 const app = express()
 
 app.use(express.json())
-
-const cursos = [
-    {id: 1, disciplina: 'ADS'},
-    {id: 2, disciplina: 'Governança'},
-    {id: 3, disciplina: 'Infraestrutura'},
-    {id: 4, disciplina: 'Inteligência Artificial'},
-]
 
 // Criando uma rota default (endpoint)
 app.get('/', (req, res) => {
@@ -16,47 +10,74 @@ app.get('/', (req, res) => {
 })
 
 // Criando um endpoint que lista os cursos
-  app.get('/cursos', (req, res) => {
-      res.status(200).send(cursos)
- })
-
- // Lista cursos
-app.post('/cursos', (req, res) => {
-    cursos.push(req.body)
-    res.status(200).send('Seleção cadastrada com sucesso!')
+app.get('/cursos', (req, res) => {
+  const sql = 'SELECT * FROM cursos'
+  conexao.query(sql, (erro, resultados) => {
+    if (erro) {
+      res.status(500).json({ erro: erro })
+    } else {
+      res.status(200).json(resultados)
+    }
+  })
 })
 
-
 // Função buscando um item por id
-function buscarCursosPorId(id) {
-    return cursos.filter(curso => curso.id == id)
-}
+app.get('/cursos/:id', (req, res) => {
+  const { id } = req.params
+  const sql = 'SELECT * FROM cursos WHERE id = ?'
+  conexao.query(sql, [id], (erro, resultados) => {
+    if (erro) {
+      res.status(500).json({ erro: erro })
+    } else if (resultados.length === 0) {
+      res.status(404).json({ mensagem: 'Curso não encontrado' })
+    } else {
+      res.status(200).json(resultados[0])
+    }
+  })
+})
 
-function buscarIndexCurso(id) {
-    return cursos.findIndex( curso => curso.id == id)
-}
-
-// Criando variavel que busca a informação do browser do usuário
-app.get('/cursos/:id', (req, res)=> {
-    //let index = req.params.id
-    //console.log(index)
-    res.json(buscarCursosPorId(req.params.id))
+// Inserir novo curso
+app.post('/cursos', (req, res) => {
+  const { disciplina } = req.body
+  const sql = 'INSERT INTO cursos (disciplina) VALUES (?)'
+  conexao.query(sql, [disciplina], (erro, resultado) => {
+    if (erro) {
+      res.status(500).json({ erro: erro })
+    } else {
+      res.status(201).json({ id: resultado.insertId, disciplina })
+    }
+  })
 })
 
 // Excluir o curso pelo id
-app.delete('/cursos/:id', (req, res)=> {
-   let index = buscarIndexCurso(req.params.id)
-   cursos.splice(index, 1)
-   console.log(index)
-   res.send(`O curso com id ${req.params.id} excluído com sucesso!`)
+app.delete('/cursos/:id', (req, res) => {
+  const { id } = req.params
+  const sql = 'DELETE FROM cursos WHERE id = ?'
+  conexao.query(sql, [id], (erro, resultado) => {
+    if (erro) {
+      res.status(500).json({ erro: erro })
+    } else if (resultado.affectedRows === 0) {
+      res.status(404).json({ mensagem: 'Curso não encontrado' })
+    } else {
+      res.status(200).json({ mensagem: `Curso ${id} excluído com sucesso!` })
+    }
+  })
 })
 
-// Alterar a disciplina de um ID
-app.put('/cursos/:id', (req, res)=> {
-   let index = buscarIndexCurso(req.params.id)
-   cursos[index].disciplina = req.body.disciplina
-   //res.status(200).send('Alteração cadastrada com sucesso!')
-   res.json(cursos)
+// Alterar a disciplina por um ID
+app.put('/cursos/:id', (req, res) => {
+  const { id } = req.params
+  const { disciplina } = req.body
+  const sql = 'UPDATE cursos SET disciplina = ? WHERE id = ?'
+  conexao.query(sql, [disciplina, id], (erro, resultado) => {
+    if (err) {
+      res.status(500).json({ erro: erro })
+    } else if (resultado.affectedRows === 0) {
+      res.status(404).json({ mensagem: 'Curso não encontrado' })
+    } else {
+      res.status(200).json({ id, disciplina })
+    }
+  })
 })
 
 export default app
