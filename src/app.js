@@ -1,5 +1,5 @@
 import express from 'express'
-import conexao from './conexao.js'
+import conexao from '../infra/conexao.js'
 const app = express()
 
 app.use(express.json())
@@ -11,73 +11,32 @@ app.get('/', (req, res) => {
 
 // Criando um endpoint que lista os cursos
 app.get('/cursos', (req, res) => {
-  const sql = 'SELECT * FROM cursos'
-  conexao.query(sql, (erro, resultados) => {
-    if (erro) {
-      res.status(500).json({ erro: erro })
-    } else {
-      res.status(200).json(resultados)
-    }
-  })
+  conexao.query('SELECT * FROM cursos', (e, r) =>
+    e ? res.status(500).json(e) : res.json(r)
+  )
 })
 
-// Função buscando um item por id
-app.get('/cursos/:id', (req, res) => {
-  const { id } = req.params
-  const sql = 'SELECT * FROM cursos WHERE id = ?'
-  conexao.query(sql, [id], (erro, resultados) => {
-    if (erro) {
-      res.status(500).json({ erro: erro })
-    } else if (resultados.length === 0) {
-      res.status(404).json({ mensagem: 'Curso não encontrado' })
-    } else {
-      res.status(200).json(resultados[0])
-    }
-  })
-})
-
-// Inserir novo curso
+// Inserir novo curso. Pega disciplina do req.body, executa o insert. Se erro, 500. Se sucesso, retorna o resultado r.
 app.post('/cursos', (req, res) => {
-  const { disciplina } = req.body
-  const sql = 'INSERT INTO cursos (disciplina) VALUES (?)'
-  conexao.query(sql, [disciplina], (erro, resultado) => {
-    if (erro) {
-      res.status(500).json({ erro: erro })
-    } else {
-      res.status(201).json({ id: resultado.insertId, disciplina })
-    }
-  })
+  conexao.query('INSERT INTO cursos (disciplinas) VALUES (?)', 
+    [req.body.disciplinas], (e, r) => e ? res.status(500).json(e) : res.json({ id: r.insertId, ...req.body }))
 })
 
-// Excluir o curso pelo id
+// Função buscando um item por id. Se erro, 500. Se sucesso, retorna o resultado r.
+app.get('/cursos/:id', (req, res) => {
+  conexao.query('SELECT * FROM cursos WHERE id = ?', 
+    [req.params.id], (e, r) => e ? res.status(500).json(e) : res.json(r))
+})
+
+// Alterar a disciplina por um ID - req.params pega o id do curso, pega disciplina de req.body, executa o UPDATE. Se erro, 500. Caso sucesso retorna o id e disciplina atualizados.
+app.put('/cursos/:id', (req, res) => { conexao.query('UPDATE cursos SET disciplinas = ? WHERE id = ?', 
+  [req.body.disciplinas, req.params.id], (e, r) => e ? res.status(500).json(e) : res.json({ id: req.params.id, ...req.body })) 
+})
+
+// Excluir o curso pelo id - req.params para pegar o id, executa o delete. Se erro, 500. Se sucesso, true
 app.delete('/cursos/:id', (req, res) => {
-  const { id } = req.params
-  const sql = 'DELETE FROM cursos WHERE id = ?'
-  conexao.query(sql, [id], (erro, resultado) => {
-    if (erro) {
-      res.status(500).json({ erro: erro })
-    } else if (resultado.affectedRows === 0) {
-      res.status(404).json({ mensagem: 'Curso não encontrado' })
-    } else {
-      res.status(200).json({ mensagem: `Curso ${id} excluído com sucesso!` })
-    }
-  })
-})
-
-// Alterar a disciplina por um ID
-app.put('/cursos/:id', (req, res) => {
-  const { id } = req.params
-  const { disciplina } = req.body
-  const sql = 'UPDATE cursos SET disciplina = ? WHERE id = ?'
-  conexao.query(sql, [disciplina, id], (erro, resultado) => {
-    if (err) {
-      res.status(500).json({ erro: erro })
-    } else if (resultado.affectedRows === 0) {
-      res.status(404).json({ mensagem: 'Curso não encontrado' })
-    } else {
-      res.status(200).json({ id, disciplina })
-    }
-  })
+  conexao.query('DELETE FROM cursos WHERE id = ?', [req.params.id], 
+    (e, r) => e ? res.status(500).json(e) : res.json({ sucesso: true }))
 })
 
 export default app
